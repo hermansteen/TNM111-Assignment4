@@ -12,22 +12,22 @@ fetch("db/starwars-full-interactions-allCharacters.json").then(response => respo
 
     var svg = d3.select("body").append("svg")
         .attr("width", width)
-        .attr("height", height)
-        .style("background-color", "#222222");
+        .attr("height", height);
 
     var simulation = d3.forceSimulation(nodes)
         .force("link", d3.forceLink(links).id(function (d) { return d.id; }))
         .force("charge", d3.forceManyBody().strength(-50))
         .force("center", d3.forceCenter(width / 2, height / 2))
-        .force("gravity", d3.forceManyBody().strength(-100));
+        .force("gravity", d3.forceManyBody().strength(-25))
+        .force("collide", d3.forceCollide().radius(10));
 
     var link = svg.selectAll(".link")
         .data(links)
         .enter().append("line")
         .attr("class", "link")
-        .attr("stroke-width", 1)
+        .attr("stroke-width", 2)
         .attr("stroke", "#555555")
-        .attr("opacity", 1);
+        .attr("opacity", 0.5);
 
     var node = svg.selectAll(".node")
         .data(nodes)
@@ -57,12 +57,18 @@ fetch("db/starwars-full-interactions-allCharacters.json").then(response => respo
         .attr("class", "tooltip")
         .style("opacity", 0);
 
+    var tooltipTitle = tooltip.append("h1").attr("class", "tooltip-title");
+    var tooltipSubtitle = tooltip.append("h2").attr("class", "tooltip-subtitle");
+
     simulation
         .nodes(nodes)
         .on("tick", ticked);
 
     simulation.force("link")
-        .links(links);
+        .links(links)
+        .distance(150)
+        .strength(0.1)
+        .iterations(5);
 
     function ticked() {
         link
@@ -76,57 +82,48 @@ fetch("db/starwars-full-interactions-allCharacters.json").then(response => respo
             .attr("cy", function (d) { return d.y; });
     }
 
-    function dragstarted(d) {
-        if (!d3.event.active) simulation.alphaTarget(0.3).restart();
-        d.fx = d.x;
-        d.fy = d.y;
-    }
-
-    function dragged(d) {
-        d.fx = d3.event.x;
-        d.fy = d3.event.y;
-    }
-
-    function dragended(d) {
-        if (!d3.event.active) simulation.alphaTarget(0);
-        d.fx = null;
-        d.fy = null;
-    }
-
-    function tooltipIn(d) {
-        tooltip.transition()
-            .duration(200)
-            .style("opacity", .9);
-        tooltip.html(d.name)
-            .style("left", (d3.event.pageX) + "px")
-            .style("top", (d3.event.pageY - 28) + "px");
-    }
-
-    function tooltipOut(d) {
-        tooltip.transition()
-            .duration(500)
-            .style("opacity", 0);
-    }
-
     node.on("mouseover", (event, d) => {
+        d3.select(event.target).transition(200).attr("r", 15);
         tooltip.transition()
             .duration(200)
             .style("opacity", .9);
-        tooltip.html(d.name)
+        tooltipSubtitle.transition()
+            .duration(200)
+            .style("opacity", .9);
+        tooltipTitle.html(d.name)
             .style("position", "absolute")
             .style("font-family", "sans-serif")
             .style("left", (20) + "px")
             .style("top", (28) + "px");
-        
-            // enlarge target node
-            d3.select(this).attr('transform', 'scale(1.5)');
+        tooltipSubtitle.html("Appears in: " + d.value + " scenes").style("position", "absolute")
+            .style("font-family", "sans-serif")
+            .style("left", (20) + "px")
+            .style("top", (70) + "px");
     })
         .on("mouseout", (event, d => {
             tooltip.transition()
-                .duration(500)
+                .duration(50)
                 .style("opacity", 0);
-            tooltip.html("");
+            d3.select(event.target).transition(200).attr("r", 10);
         }));
+
+    link.on("mouseover", (event, d) => {
+        d3.select(event.target).transition(200).attr("stroke-width", 3);
+        tooltip.transition()
+            .duration(200)
+            .style("opacity", .9);
+        tooltipSubtitle.transition()
+            .duration(200)
+            .style("opacity", .9);
+        tooltipTitle.html(d.source.name + " - " + d.target.name)
+            .style("position", "absolute");
+    })
+        .on("mouseout", (event, d) => {
+            tooltip.transition()
+                .duration(50)
+                .style("opacity", 0);
+            d3.select(event.target).transition(200).attr("stroke-width", 1);
+        });
 
     //zoom and pan
     var zoom_handler = d3.zoom()
